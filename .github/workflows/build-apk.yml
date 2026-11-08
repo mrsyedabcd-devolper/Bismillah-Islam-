@@ -1,8 +1,0 @@
-- name: Download project from release
-  env:
-    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  run: |
-    rm -f bismillah.zip
-    gh release download v1 --repo "${{ github.repository }}" -p bismillah.zip --clobber
-    unzip -o -q bismillah.zip
-    rm -f bismillah.zip
