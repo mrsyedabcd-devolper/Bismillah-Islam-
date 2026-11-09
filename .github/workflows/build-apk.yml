@@ -17,12 +17,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Assets in release v1:"
           gh api repos/${{ github.repository }}/releases/tags/v1 -q '.assets[].name'
           ID=$(gh api repos/${{ github.repository }}/releases/tags/v1 -q '.assets[] | select(.name=="bismillah.zip") | .id')
           if [ -z "$ID" ]; then echo "bismillah.zip not found in release"; exit 1; fi
           gh api -H "Accept: application/octet-stream" repos/${{ github.repository }}/releases/assets/$ID > bismillah.zip
-          ls -la bismillah.zip
           unzip -o -q bismillah.zip
           rm -f bismillah.zip
 
@@ -40,6 +38,16 @@ jobs:
         run: |
           flutter create --org com.orbitislam --project-name orbit_islam --platforms=android .
           python3 tool/patch_platforms.py
+
+      - name: Copy azan sounds for notifications
+        run: |
+          mkdir -p android/app/src/main/res/raw
+          cp assets/azan/*.mp3 android/app/src/main/res/raw/
+          ls -la android/app/src/main/res/raw/
+          test -f android/app/src/main/res/raw/azan_classic.mp3
+          test -f android/app/src/main/res/raw/azan_makkah.mp3
+          test -f android/app/src/main/res/raw/azan_alaqsa.mp3
+          test -f android/app/src/main/res/raw/azan_fajr.mp3
 
       - name: Get packages
         run: flutter pub get
