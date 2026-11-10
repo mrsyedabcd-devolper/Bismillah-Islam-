@@ -1,1 +1,66 @@
 
+name: Build APK
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download project from release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api repos/${{ github.repository }}/releases/tags/v1 -q '.assets[].name'
+          ID=$(gh api repos/${{ github.repository }}/releases/tags/v1 -q '.assets[] | select(.name=="bismillah.zip") | .id')
+          if [ -z "$ID" ]; then echo "bismillah.zip not found in release"; exit 1; fi
+          gh api -H "Accept: application/octet-stream" repos/${{ github.repository }}/releases/assets/$ID > bismillah.zip
+          unzip -o -q bismillah.zip
+          rm -f bismillah.zip
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Create platform folders
+        run: |
+          flutter create --org com.orbitislam --project-name orbit_islam --platforms=android .
+          python3 tool/patch_platforms.py
+
+      - name: Copy azan sounds for notifications
+        run: |
+          mkdir -p android/app/src/main/res/raw
+          cp assets/azan/*.mp3 android/app/src/main/res/raw/
+          ls -la android/app/src/main/res/raw/
+          test -f android/app/src/main/res/raw/azan_classic.mp3
+          test -f android/app/src/main/res/raw/azan_makkah.mp3
+          test -f android/app/src/main/res/raw/azan_alaqsa.mp3
+          test -f android/app/src/main/res/raw/azan_fajr.mp3
+
+      - name: Get packages
+        run: flutter pub get
+
+      - name: Test prayer, Hijri and data
+        run: flutter test
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bismillah-islam-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          
